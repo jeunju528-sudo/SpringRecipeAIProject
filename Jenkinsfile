@@ -128,7 +128,7 @@ pipeline {
 			}
 		}
 		
-		stage('Docker Run'){
+		stage('Docker Runn'){
 			steps {
 				sh '''
 				     docker run -d --name ai-app -p 9090:9090 --env-file .env jeunju528/ai-app:latest
