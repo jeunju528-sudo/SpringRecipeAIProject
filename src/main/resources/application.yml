@@ -1,16 +1,12 @@
 server:
   port: 9090
-  servlet:
-    context-path: /
-
 spring:
   # 데이터베이스 설정 (다중 DB 바인딩용 커스텀 프로퍼티)
   datasource:
-    url: jdbc:postgresql://localhost:5432/recipe
-    username: postgres
-    password: "1234"
-    driver-class-name: org.postgresql.Driver
-
+      url: jdbc:postgresql://localhost:5432/recipe
+      username: postgres
+      password: "1234"
+      driver-class-name: org.postgresql.Driver 
   thymeleaf:
     cache: false
     encoding: UTF-8
@@ -38,7 +34,7 @@ spring:
 # MyBatis 설정
 mybatis:
   type-aliases-package: com.sist.web.vo
-  mapper-locations:
+  mapper-locations: 
     - classpath:/mapper/postgres/*.xml
   configuration:
     map-underscore-to-camel-case: true

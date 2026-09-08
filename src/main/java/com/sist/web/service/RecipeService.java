@@ -15,9 +15,28 @@ import com.sist.web.mapper.PostgresMapper;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * ============================================================
+ * RecipeVectorService
+ * ============================================================
+ *
+ * 역할 1. 사용자가 선택한 냉장고 재료를 하나의 검색 문장으로 만든다. 2. EmbeddingModel을 이용하여 검색 벡터를 생성한다.
+ * 3. PostgreSQL + pgVector에서 유사 레시피를 검색한다. 4. 사용자가 가지고 있는 재료와 레시피 재료를 비교한다. 5.
+ * 재료 충족률 및 부족 재료를 계산한다.
+ *
+ * 전체 흐름
+ *
+ * HTML ↓ RecipeController ↓ RecipeVectorService ↓ EmbeddingModel ↓ PostgreSQL
+ * pgVector ↓ 유사 레시피 ↓ 재료 충족률 계산 ↓ HTML
+ *
+ * 중요 ------------------------------------------------------------ recipe_vector
+ * 테이블에 저장되어 있는 embedding을 만들 때 사용한 Embedding 모델과 검색할 때 사용하는 Embedding 모델은 반드시
+ * 동일해야 한다. ============================================================
+ */
 @Service
 @RequiredArgsConstructor
 public class RecipeService {
+
 	/*
 	 * PostgreSQL + pgVector SQL Mapper
 	 */
