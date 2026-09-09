@@ -1,140 +1,127 @@
 pipeline {
 	agent any
+	
 	environment {
-		APP_DIR="~/app"
-		JAR_NAME="SpringRecipeAIProject-0.0.1-SNAPSHOT.jar"
+		APP_DIR = "~/app"
+		JAR_NAME = "SpringRecipeAIProject-0.0.1-SNAPSHOT.jar"
+		DOCKER_IMAGE = "jeunju528/ai-app:lastet"
 	}
+	
 	stages {
-		/*
-		    git push = commit (main) 
-		       |
-		    web hook / poll
-		       |
-		     Jenkins (local) = EC2
-		       |
-		     build 
-		       |
-		     docker build 
-		     docker push 
-		        |
-		     docker pull 
-		     docker run
-		     
-		     -name: = stage 
-		      run: 명령어 => steps
-		*/
-		/*
-		    Repository : 소스파일 => Git URL
-		*/
-		stage('Check Out') {
+		stage("Repository Checkout"){
 			steps {
 				echo 'Git Checkout'
 				checkout scm
 			}
 		}
-		// 임시 
-		stage('Create .env') {
+		
+		stage("Create .env"){
 			steps {
 				withCredentials([
 					string(
-						credentialsId: 'post-url',
+						credentailsId: 'post-url'
 						variable: 'POST_URL'
 					),
 					string(
-						credentialsId: 'gen-key',
+						credentailsId: 'gen-key'
 						variable: 'GEN_KEY'
 					)
 				]){
 					sh '''
-					    echo "SPRING_PROFILES_ACTIVE=prod" > .env
-					    echo "POST_URL=${POST_URL}" >> .env
-					    echo "GEN_KEY=${GEN_KEY}" >> .env
-
-					    chmod 600 .env
+						echo "SPRING_PROFILES_ACTIVE=prod" > .env
+						echo "POST_URL=${POST_URL} >> .env
+						echo "GEN_KEY=${GEN_KEY} >> .env
+						chmod 600 .env
 					   '''
 				}
 			}
 		}
-		// gradlew build => permission  처리 
-		stage('Gradlew Permission'){
+		
+		stage("Gradle Permission") {
 			steps {
 				sh '''
-				    chmod +x gradlew
+					./gradlew clean build -x test
 				   '''
 			}
 		}
 		
-		// gradlew build
-		stage('Gradlew Build'){
+		stage("Docker build") {
 			steps {
 				sh '''
-				    ./gradlew clean build -x test
+					docker build -t ${DOCKER_IMAGE} .
 				   '''
 			}
 		}
-		// Docker Build 
-		stage('Docker Build'){
+		
+		stage("DockerHub login") {
 			steps {
-				sh '''
-				     docker build -t jeunju528/ai-app:latest .
-				   '''
-			}
-		}
-		// DockerHub Login
-		stage('DockerHub Login'){
-			steps {
-				withCredentials([usernamePassword(
-					credentialsId: 'dockerhub_info',
-					usernameVariable: 'DH_USER',
-					passwordVariable: 'DH_PASS'
-				)]){
+				withCredentials([
+					usernamePassword(
+						credentailsId: 'dockerhub_info',
+						usernameVariable: 'DH_USER',
+						passwordVariable: 'DH_PASS'
+					)
+				]){
 					sh '''
-					    echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
+						echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
 					   '''
 				}
 			}
 		}
 		
-		stage('Docker Push'){
+		stage("DockerHub Push"){
 			steps {
 				sh '''
-				    docker push jeunju528/ai-app:latest
+					docker push ${DOCKER_IMAGE}
 				   '''
 			}
 		}
 		
-		stage('Container Stop'){
+		stage("Docker Compose DOWN"){
 			steps {
 				sh '''
-				    docker stop ai-app || true
+					docker compose down || true
 				   '''
 			}
 		}
 		
-		stage('Container Remove'){
+		stage("DockerHub Pull"){
 			steps {
 				sh '''
-				    docker rm ai-app || true
+					docker compose pull
 				   '''
 			}
 		}
 		
-		stage('DockerHub Pull'){
+		stage("Docker Compose Run"){
 			steps {
 				sh '''
-				    docker pull jeunju528/ai-app:latest
+					docker compose up -d
 				   '''
 			}
 		}
-		
-		stage('Docker Runn'){
+
+		stage("Container Check"){
 			steps {
 				sh '''
-				     docker run -d --name ai-app -p 9090:9090 --env-file .env jeunju528/ai-app:latest
+					docker compose ps
 				   '''
 			}
 		}
-		
-		
+	}
+}
+post {
+	success {
+		echo '==================='
+		echo 'Docker Compose 배포 성공'
+		echo '==================='
+	}
+	failure {
+		echo '==================='
+		echo 'Docker Compose 배포 실패'
+		echo '==================='
+		sh '''
+			docker compose ps || true
+		   '''
 	}
 }

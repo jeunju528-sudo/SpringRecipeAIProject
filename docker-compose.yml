@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  app:
+    image: ${DOCKER_USERNAME}/ai-app:latest # 빌드한 이미지에 이름(태그)을 새로 붙이는 것, build가 없으면 이 이름의 이미지를 가져와 실행
+    container_name: ai-app
+    ports:
+      - "9090:9090"
+    env_file:
+      - .env
+    restart: always
