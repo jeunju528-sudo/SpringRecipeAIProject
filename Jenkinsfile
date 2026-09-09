@@ -4,7 +4,7 @@ pipeline {
 	environment {
 		APP_DIR = "~/app"
 		JAR_NAME = "SpringRecipeAIProject-0.0.1-SNAPSHOT.jar"
-		DOCKER_IMAGE = "jeunju528/ai-app:lastet"
+		DOCKER_IMAGE = "jeunju528/ai-app:latest"
 	}
 	
 	stages {
@@ -19,18 +19,18 @@ pipeline {
 			steps {
 				withCredentials([
 					string(
-						credentailsId: 'post-url'
+						credentialsId: 'post-url'
 						variable: 'POST_URL'
 					),
 					string(
-						credentailsId: 'gen-key'
+						credentialsId: 'gen-key'
 						variable: 'GEN_KEY'
 					)
 				]){
 					sh '''
 						echo "SPRING_PROFILES_ACTIVE=prod" > .env
-						echo "POST_URL=${POST_URL} >> .env
-						echo "GEN_KEY=${GEN_KEY} >> .env
+						echo "POST_URL=${POST_URL}" >> .env
+						echo "GEN_KEY=${GEN_KEY}" >> .env
 						chmod 600 .env
 					   '''
 				}
@@ -57,7 +57,7 @@ pipeline {
 			steps {
 				withCredentials([
 					usernamePassword(
-						credentailsId: 'dockerhub_info',
+						credentialsId: 'dockerhub_info',
 						usernameVariable: 'DH_USER',
 						passwordVariable: 'DH_PASS'
 					)
