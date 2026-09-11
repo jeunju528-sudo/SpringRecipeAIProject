@@ -29,7 +29,11 @@ pipeline {
 	environment {
 		APP_DIR = "~/app"
 		JAR_NAME = "SpringRecipeAIProject-0.0.1-SNAPSHOT.jar"
-		DOCKER_IMAGE = "jeunju528/ai-app:latest"
+		DOCKER_IMAGE = "chaijewon/ai-app:latest"
+		// AWS EC2
+		SERVER_USER="ubuntu"
+		SERVER_IP="3.36.16.172"
+		APP_DIR="/home/ubuntu/app"
 	}
 	// 우분투 (AWS) 명령어 수행 
 	/*
@@ -45,29 +49,16 @@ pipeline {
 				checkout scm
 			}
 		}
-		// yml 인식 => ${POST_URL} , api-key : ${GEN_KEY}
-		stage("Create .env"){
+		// 2. Java = JDK확인 
+		stage("JDK21 확인"){
 			steps {
-				withCredentials([
-					string(
-						credentialsId: 'post-url',
-						variable: 'POST_URL'
-					),
-					string(
-						credentialsId: 'gen-key',
-						variable: 'GEN_KEY'
-					)
-				]){
-					sh '''
-					   echo "SPRING_PROFILES_ACTIVE=prod" > .env
-					   echo "POST_URL=${POST_URL}" >> .env
-					   echo "GEN_KEY=${GEN_KEY}" >> .env
-					   
-					   chmod 600 .env
-					   '''
-				}
+				sh '''
+				    java -version
+				    ./gradlew --version
+				   '''
 			}
 		}
+		// yml 인식 => ${POST_URL} , api-key : ${GEN_KEY}
 		
 		// 3. gradlew 실행 권한 
 		stage("Gradle Permission") {
@@ -121,37 +112,113 @@ pipeline {
 			}
 		}
 		
-		// 8. 기존의 Container 종류 = ai-app
-		stage("Docker Compose DOWN") {
+		// 8. SSH KEY 설정 SERVER_SSH_KEY
+        stage("SSH Key Setting"){
+			steps {
+				withCredentials([
+					sshUserPrivateKey(
+						credentialsId: 'SERVER_SSH_KEY',
+						keyFileVariable: 'SSH_KEY',
+						usernameVariable: 'SSH_USER'
+					)
+				]){
+					sh '''
+					    mkdir -p ~/.ssh
+					    cp "$SSH_KEY" ~/.ssh/id_ed25519
+					    chmod 600 ~/.ssh/id_ed25519
+					   '''
+				}
+			}
+		}
+		// 9. AWS 접근 
+		stage("Known Hosts"){
 			steps {
 				sh '''
-				     docker compose down || true
+				    mkdir -p ~/.ssh
+				    ssh-keyscan -H 3.36.16.172 >> ~/.ssh/known_hosts
+				    
+				    chmod 644 ~/.ssh/known_hosts
 				   '''
+			}
+		}
+		// 10. .env생성 
+		stage("Create .env"){
+			steps {
+				withCredentials([
+					string(
+						credentialsId: 'post-url',
+						variable: 'POST_URL'
+					),
+					string(
+						credentialsId: 'gen-key',
+						variable: 'GEN_KEY'
+					),
+					sshUserPrivateKey(
+						credentialsId: 'SERVER_SSH_KEY',
+						keyFileVariable: 'SSH_KEY',
+						usernameVariable: 'SSH_USER'
+					)
+				]){
+					sh '''
+					   ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ubuntu@3.36.16.172<<EOF 
+					   mkdir -p /home/ubuntu/app
+					   
+					   cd /home/ubuntu/app
+					   
+					   rm -f .env
+					   
+					   echo "SPRING_PROFILES_ACTIVE=prod" > .env
+					   echo "POST_URL=${POST_URL}" >> .env
+					   echo "GEN_KEY=${GEN_KEY}" >> .env
+					   
+					   chmod 600 .env
+					   
+					   EOF
+					   '''
+				}
+			}
+		}
+
+        // 8. docker-compose.yml 이동 
+        stage("Copy Docker-Compose"){
+			steps {
+				withCredentials([
+					sshUserPrivateKey(
+						credentialsId: 'SERVER_SSH_KEY',
+						keyFileVariable: 'SSH_KEY',
+						usernameVariable: 'SSH_USER'
+					)
+				]){
+					sh '''
+					    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ubuntu@3.36.16.172 "mkdir -p /home/ubuntu/app"
+					    
+					    scp -i "$SSH_KEY" -o StrictHostKeyChecking=no ubuntu@3.36.16.172 docker-compose.yml ubuntu@3.36.16.172:/home/ubuntu/app/docker-compose.yml
+					   '''
+					   
+				}
 			}
 		}
 		
-		// 9. 최신 이미지를 읽어 온다 
-		stage("Docker Compose Pull") {
+		stage("Deploy"){
 			steps {
-				sh '''
-				    docker compose pull
-				   '''
-			}
-		}
-		// 10 docker compose 실행 
-		stage("Docker Compose Up") {
-			steps {
-				sh '''
-				    docker compose up -d
-				   '''
-			}
-		}
-		// 11. Container Check
-		stage("Container Check") {
-			steps {
-				sh '''
-				    docker compose ps
-				   '''
+				withCredentials([
+					sshUserPrivateKey(
+						credentialsId: 'SERVER_SSH_KEY',
+						keyFileVariable: 'SSH_KEY',
+						usernameVariable: 'SSH_USER'
+					)
+				]){
+					sh '''
+					    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ubuntu@3.36.16.172<<EOF
+					    cd /home/ubuntu/app
+					    docker-compose down
+					    docker-compose pull
+					    docker-compose up -d
+					    
+					    EOF
+					    
+					   '''
+				}
 			}
 		}
 		
