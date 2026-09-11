@@ -53,6 +53,7 @@ pipeline {
 			steps {
 				sh '''
 				    java -version
+				    
 				   '''
 			}
 		}
@@ -165,7 +166,7 @@ pipeline {
 					   echo "SPRING_PROFILES_ACTIVE=prod" > .env && \
 					   echo "POST_URL=${POST_URL}" >> .env && \
 					   echo "GEN_KEY=${GEN_KEY}" >> .env && \
-					   chmod 600 .env "
+					   chmod 600 .env"
 					   '''
 				}
 			}
@@ -183,8 +184,7 @@ pipeline {
 				]){
 					sh '''
 					    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ubuntu@15.164.50.244 "mkdir -p /home/ubuntu/app"
-					    
-					    scp -i "$SSH_KEY" -o StrictHostKeyChecking=no ubuntu@15.164.50.244 docker-compose.yml ubuntu@15.164.50.244:/home/ubuntu/app/docker-compose.yml
+					    scp -i "$SSH_KEY" -o StrictHostKeyChecking=no docker-compose.yml ubuntu@15.164.50.244:/home/ubuntu/app/docker-compose.yml
 					   '''
 					   
 				}
@@ -206,7 +206,6 @@ pipeline {
 					    docker-compose down && \
 					    docker-compose pull && \
 					    docker-compose up -d"
-					    					    
 					   '''
 				}
 			}
@@ -218,12 +217,12 @@ pipeline {
 post {
 	success {
 		echo '======================='
-		echo 'Docket Compose 배포 성공'
+		echo 'Docket Compose 배포 성공!!'
 		echo '======================='
 	}
 	failure {
 		echo '======================='
-		echo 'Docket Compose 배포 실패'
+		echo 'Docket Compose 배포 실패!!'
 		echo '======================='
 		sh '''
 		    docker compose ps || true
